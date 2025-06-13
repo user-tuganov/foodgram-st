@@ -1,0 +1,9 @@
+Django
+django-filter
+djangorestframework
+djoser
+gunicorn
+psycopg2-binary
+Pillow
+python-dotenv
+PyYAML
