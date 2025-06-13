@@ -1,0 +1,57 @@
+services:
+  db:
+    image: postgres:16
+    env_file:
+      - ./backend/.env
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "5432:5432"
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    env_file:
+      - ./backend/.env
+    volumes:
+      - static:/app/static
+      - media:/app/media
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8001:8000"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    command: sh -c "cp -r /app/build/* /static/ && cp -r /app/build/static/* /static/"
+    volumes:
+      - static:/static
+    depends_on:
+      - backend
+
+  nginx:
+    build:
+      context: ./
+      dockerfile: ./infra/Dockerfile
+    ports:
+      - "8000:80"
+    volumes:
+      - static:/static
+      - media:/media
+      - ./docs/:/usr/share/nginx/html/api/docs/
+    depends_on:
+      - frontend
+
+volumes:
+  pg_data:
+  static:
+  media:
