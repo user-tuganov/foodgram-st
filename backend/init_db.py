@@ -43,9 +43,8 @@ def main():
     backend_dir = Path(__file__).parent
     os.chdir(backend_dir)
 
-    print("Очищаю данные в бд")
-    if os.path.exists("db.sqlite3"):
-        os.remove("db.sqlite3")
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'foodgram.settings')
+    django.setup()
 
     print("Создаю и применяю миграции")
     run_command(f"{sys.executable} manage.py makemigrations")
@@ -54,8 +53,6 @@ def main():
     print("Добавляю данные в бд")
     run_command(f"{sys.executable} manage.py add_ingredients")
 
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'foodgram.settings')
-    django.setup()
 
     print("Создаю админа")
     create_superuser()

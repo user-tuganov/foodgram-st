@@ -34,9 +34,7 @@ class CustomIngredientFilter(filters.FilterSet):
     name = filters.CharFilter(method="filter_name")
 
     def filter_name(self, queryset, name, value):
-        return queryset.filter(
-            Q(name__istartswith=value) | Q(name__icontains=value)
-        ).order_by("name")
+        return queryset.filter(name__istartswith=value).order_by("name")
 
     class Meta:
         model = Ingredient
