@@ -40,8 +40,8 @@ services:
 
   nginx:
     build:
-      context: ./
-      dockerfile: ./infra/Dockerfile
+      context: ./infra
+      dockerfile: Dockerfile
     ports:
       - "8000:80"
     volumes:
