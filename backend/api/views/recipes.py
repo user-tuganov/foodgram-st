@@ -1,6 +1,8 @@
-from django.db.models import Sum
-from django.http import HttpResponse
+from django.db.models import Exists, OuterRef, Sum
+from django.http import HttpResponse, FileResponse
 from django.shortcuts import get_object_or_404
+from django.urls import reverse
+from django_filters.rest_framework import DjangoFilterBackend
 from recipes.models import (Favorite, Ingredient, IngredientInRecipe, Recipe,
                             ShoppingCart)
 from rest_framework import status, viewsets
@@ -9,25 +11,14 @@ from rest_framework.permissions import (
     SAFE_METHODS, AllowAny, BasePermission, IsAuthenticated)
 from rest_framework.response import Response
 
+from ..permissions import IsAuthorOrReadOnly
 from ..serializers.ingredients import IngredientSerializer
 from ..serializers.recipes import (RecipeCreateUpdateSerializer,
                                    RecipeListSerializer)
 from ..serializers.users import RecipeMinifiedSerializer
 from ..utils import (CustomIngredientFilter, CustomPagination,
                      CustomRecipeFilter)
-
-
-class IsAuthorOrReadOnly(BasePermission):
-    """
-    Вспомогательный метод для получения прав на изменение рецепта
-    (Только автору позволено изменять)
-    """
-
-    def has_permission(self, request, view):
-        return request.method in SAFE_METHODS or request.user.is_authenticated
-
-    def has_object_permission(self, request, view, obj):
-        return request.method in SAFE_METHODS or obj.author == request.user
+from users.models import User
 
 
 class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
@@ -84,16 +75,13 @@ class RecipeViewSet(viewsets.ModelViewSet):
         request = self.context.get("request")
         if not self._check_user_auth(request):
             return False
-        return Favorite.objects.filter(user=request.user, recipe=obj).exists()
+        return obj.favorites.filter(user=request.user).exists()
 
     def get_is_in_shopping_cart(self, obj):
         request = self.context.get("request")
         if not self._check_user_auth(request):
             return False
-        return ShoppingCart.objects.filter(
-            user=request.user,
-            recipe=obj
-        ).exists()
+        return obj.shopping_carts.filter(user=request.user).exists()
 
     def _handle_m2m_action(self, request, pk, model_class, error_message):
         recipe = get_object_or_404(Recipe, id=pk)
@@ -171,12 +159,15 @@ class RecipeViewSet(viewsets.ModelViewSet):
             "".join(shopping_list),
             content_type="text/plain; charset=utf-8"
         )
-        response["Content-Disposition"] = \
+        response["Content-Disposition"] = (
             'attachment; filename="shopping_list.txt"'
+        )
         return response
 
     @action(detail=True, methods=["GET"], url_path="get-link")
     def get_link(self, request, pk=None):
         recipe = self.get_object()
-        url = request.build_absolute_uri(f"/api/recipes/{recipe.id}/")
+        url = request.build_absolute_uri(
+            reverse('api:recipe-detail', args=[recipe.id])
+        )
         return Response({"short-link": url})

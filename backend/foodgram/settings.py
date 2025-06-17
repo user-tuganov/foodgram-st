@@ -19,7 +19,7 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv("SECRET_KEY", default="token")
-DEBUG = os.getenv("DEBUG", "False") == "True"
+DEBUG = "True"
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", default="127.0.0.1,localhost").split(",")
 
 
@@ -173,3 +173,8 @@ DJOSER = {
         "user_list": ["rest_framework.permissions.IsAuthenticatedOrReadOnly"],
     },
 }
+
+MIN_COOKING_TIME = 1
+MAX_COOKING_TIME = 32000
+MIN_INGREDIENT_AMOUNT = 1
+MAX_INGREDIENT_AMOUNT = 32000

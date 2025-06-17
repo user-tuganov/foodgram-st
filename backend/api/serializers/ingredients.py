@@ -1,4 +1,5 @@
-from django.core.validators import MinValueValidator
+from django.core.validators import MinValueValidator, MaxValueValidator
+from django.conf import settings
 from recipes.models import Ingredient, IngredientInRecipe
 from rest_framework import serializers
 
@@ -26,9 +27,13 @@ class IngredientInRecipeSerializer(serializers.ModelSerializer):
         source="ingredient.measurement_unit"
     )
     amount = serializers.IntegerField(
-        validators=[MinValueValidator(1)],
+        validators=[
+            MinValueValidator(settings.MIN_INGREDIENT_AMOUNT),
+            MaxValueValidator(settings.MAX_INGREDIENT_AMOUNT)
+        ],
         error_messages={
-            "min_value": "Количество ингредиента должно быть больше 0"
+            "min_value": "Количество ингредиента должно быть больше 0",
+            "max_value": "Количество ингредиента не может быть больше 32000"
         },
     )
 

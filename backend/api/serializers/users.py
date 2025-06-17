@@ -18,6 +18,10 @@ class CustomUserCreateSerializer(UserCreateSerializer):
         fields = ("id", "email", "username", "password",
                   "first_name", "last_name")
 
+    def validate(self, attrs):
+        print('Data:', attrs)
+        return super().validate(attrs)
+
 
 class RecipeMinifiedSerializer(serializers.ModelSerializer):
     """
@@ -63,10 +67,7 @@ class CustomUserSerializer(UserSerializer):
             return False
         if not request.user.is_authenticated:
             return False
-        return Subscription.objects.filter(
-            user=request.user,
-            author=obj
-        ).exists()
+        return obj.following.filter(user=request.user).exists()
 
 
 class UserWithRecipesSerializer(CustomUserSerializer):
@@ -148,8 +149,6 @@ class SubscriptionSerializer(CustomUserSerializer):
         return obj.recipes.count()
 
     def get_recipes(self, obj):
-        from api.serializers.recipes import RecipeMinifiedSerializer
-
         request = self.context.get("request")
         recipes_limit = request.query_params.get(
             "recipes_limit"

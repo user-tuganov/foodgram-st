@@ -1,4 +1,5 @@
-from django.core.validators import MinValueValidator
+from django.core.validators import MinValueValidator, MaxValueValidator
+from django.conf import settings
 from recipes.models import Favorite, IngredientInRecipe, Recipe, ShoppingCart
 from rest_framework import serializers
 
@@ -40,7 +41,7 @@ class RecipeListSerializer(serializers.ModelSerializer):
             return False
         if not request.user.is_authenticated:
             return False
-        return Favorite.objects.filter(user=request.user, recipe=obj).exists()
+        return obj.favorites.filter(user=request.user).exists()
 
     def get_is_in_shopping_cart(self, obj):
         request = self.context.get("request")
@@ -48,10 +49,7 @@ class RecipeListSerializer(serializers.ModelSerializer):
             return False
         if not request.user.is_authenticated:
             return False
-        return ShoppingCart.objects.filter(
-            user=request.user,
-            recipe=obj
-        ).exists()
+        return obj.shopping_carts.filter(user=request.user).exists()
 
     def get_image(self, obj):
         request = self.context.get("request")
@@ -70,9 +68,13 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
     ingredients = IngredientInRecipeSerializer(many=True)
     image = Base64ImageField(required=True)
     cooking_time = serializers.IntegerField(
-        validators=[MinValueValidator(1)],
+        validators=[
+            MinValueValidator(settings.MIN_COOKING_TIME),
+            MaxValueValidator(settings.MAX_COOKING_TIME)
+        ],
         error_messages={
-            "min_value": "Время приготовления должно быть больше 0"
+            "min_value": "Время приготовления должно быть больше 0",
+            "max_value": "Время приготовления не может быть больше 32000"
         },
     )
     author = CustomUserSerializer(read_only=True)
@@ -94,14 +96,14 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 "Необходимо указать хотя бы один ингредиент"
             )
-        used_ingredients = []
+        used_ingredients = set()
         for item in value:
             ingredient = item["ingredient"]
             if ingredient in used_ingredients:
                 raise serializers.ValidationError(
                     "Ингредиенты не должны повторяться"
                 )
-            used_ingredients.append(ingredient)
+            used_ingredients.add(ingredient)
         return value
 
     def validate(self, data):
@@ -115,27 +117,27 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
             )
         return data
 
+    def _create_ingredients(self, recipe, ingredients_data):
+        """Создание ингредиентов для рецепта"""
+        IngredientInRecipe.objects.bulk_create(
+            IngredientInRecipe(
+                recipe=recipe,
+                ingredient=data["ingredient"],
+                amount=data["amount"]
+            ) for data in ingredients_data
+        )
+
     def create(self, validated_data):
         ingredients_data = validated_data.pop("ingredients")
         recipe = Recipe.objects.create(**validated_data)
-        for ingredient in ingredients_data:
-            IngredientInRecipe.objects.create(
-                recipe=recipe,
-                ingredient=ingredient["ingredient"],
-                amount=ingredient["amount"],
-            )
+        self._create_ingredients(recipe, ingredients_data)
         return recipe
 
     def update(self, instance, validated_data):
         if "ingredients" in validated_data:
             ingredients_data = validated_data.pop("ingredients")
             instance.ingredients.clear()
-            for ingredient_data in ingredients_data:
-                IngredientInRecipe.objects.create(
-                    recipe=instance,
-                    ingredient=ingredient_data["ingredient"],
-                    amount=ingredient_data["amount"],
-                )
+            self._create_ingredients(instance, ingredients_data)
         return super().update(instance, validated_data)
 
     def to_representation(self, instance):
