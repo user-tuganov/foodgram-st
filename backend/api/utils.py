@@ -2,7 +2,6 @@ import base64
 import uuid
 
 from django.core.files.base import ContentFile
-from django.db.models import Q
 from django_filters import rest_framework as filters
 from recipes.models import Ingredient, Recipe
 from rest_framework import serializers
@@ -58,7 +57,7 @@ class CustomRecipeFilter(filters.FilterSet):
     def filter_is_in_shopping_cart(self, queryset, name, value):
         user = self.request.user
         if value and user.is_authenticated:
-            return queryset.filter(shopping_cart__user=user)
+            return queryset.filter(shoppingcarts__user=user)
         return queryset
 
     class Meta:

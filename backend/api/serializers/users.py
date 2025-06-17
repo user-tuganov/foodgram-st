@@ -3,7 +3,6 @@ from django.contrib.auth import get_user_model
 from djoser.serializers import UserCreateSerializer, UserSerializer
 from recipes.models import Recipe
 from rest_framework import serializers
-from users.models import Subscription
 
 from ..utils import Base64ImageField
 
@@ -17,10 +16,6 @@ class CustomUserCreateSerializer(UserCreateSerializer):
         model = User
         fields = ("id", "email", "username", "password",
                   "first_name", "last_name")
-
-    def validate(self, attrs):
-        print('Data:', attrs)
-        return super().validate(attrs)
 
 
 class RecipeMinifiedSerializer(serializers.ModelSerializer):

@@ -1,7 +1,7 @@
-from django.contrib.auth import get_user_model
-from django.core.validators import MinValueValidator, MaxValueValidator
-from django.db import models
 from django.conf import settings
+from django.contrib.auth import get_user_model
+from django.core.validators import MaxValueValidator, MinValueValidator
+from django.db import models
 
 User = get_user_model()
 
@@ -35,7 +35,7 @@ class Recipe(models.Model):
         verbose_name="Ингредиенты",
     )
     cooking_time = models.PositiveSmallIntegerField(
-        "Время приготовления (в минутах)", 
+        "Время приготовления (в минутах)",
         validators=[
             MinValueValidator(settings.MIN_COOKING_TIME),
             MaxValueValidator(settings.MAX_COOKING_TIME)
@@ -66,7 +66,7 @@ class IngredientInRecipe(models.Model):
         Ingredient, on_delete=models.CASCADE, verbose_name="Ингредиент"
     )
     amount = models.PositiveSmallIntegerField(
-        "Количество", 
+        "Количество",
         validators=[
             MinValueValidator(settings.MIN_INGREDIENT_AMOUNT),
             MaxValueValidator(settings.MAX_INGREDIENT_AMOUNT)
@@ -95,8 +95,8 @@ class RecipeUserBaseModel(models.Model):
         User, on_delete=models.CASCADE, verbose_name="Пользователь"
     )
     recipe = models.ForeignKey(
-        "Recipe", 
-        on_delete=models.CASCADE, 
+        "Recipe",
+        on_delete=models.CASCADE,
         verbose_name="Рецепт",
         related_name="%(class)ss"
     )

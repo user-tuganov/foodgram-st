@@ -1,6 +1,6 @@
-from django.core.validators import MinValueValidator, MaxValueValidator
 from django.conf import settings
-from recipes.models import Favorite, IngredientInRecipe, Recipe, ShoppingCart
+from django.core.validators import MaxValueValidator, MinValueValidator
+from recipes.models import IngredientInRecipe, Recipe
 from rest_framework import serializers
 
 from ..utils import Base64ImageField
@@ -49,7 +49,7 @@ class RecipeListSerializer(serializers.ModelSerializer):
             return False
         if not request.user.is_authenticated:
             return False
-        return obj.shopping_carts.filter(user=request.user).exists()
+        return obj.shoppingcarts.filter(user=request.user).exists()
 
     def get_image(self, obj):
         request = self.context.get("request")
@@ -74,7 +74,7 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
         ],
         error_messages={
             "min_value": "Время приготовления должно быть больше 0",
-            "max_value": "Время приготовления не может быть больше 32000"
+            "max_value": "Время приготовления не может быть больше 32_000"
         },
     )
     author = CustomUserSerializer(read_only=True)

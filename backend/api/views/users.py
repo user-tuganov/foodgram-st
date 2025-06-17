@@ -5,7 +5,7 @@ from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
-from users.models import Subscription, User
+from users.models import User
 
 from ..serializers.users import (CustomUserSerializer, SetAvatarSerializer,
                                  SetPasswordSerializer,
@@ -35,27 +35,27 @@ class CustomUserViewSet(UserViewSet):
     )
     def set_password(self, request):
         serializer = SetPasswordSerializer(data=request.data)
-        if serializer.is_valid():
-            user = request.user
-            if user.check_password(serializer.data["current_password"]):
-                user.set_password(serializer.data["new_password"])
-                user.save()
-                return Response(status=status.HTTP_204_NO_CONTENT)
+        serializer.is_valid(raise_exception=True)
+        user = request.user
+        if not user.check_password(serializer.data["current_password"]):
             return Response(
                 {"current_password": ["Неверный пароль"]},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        user.set_password(serializer.data["new_password"])
+        user.save()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(
         detail=False, methods=["GET"],
         permission_classes=[IsAuthenticated]
     )
     def subscriptions(self, request):
-        queryset = User.objects.filter(
-            following__user=request.user
-        ).order_by("id")
-        page = self.paginate_queryset(queryset)
+        queryset = (request.user.subscriptions.select_related('author')
+                    .values('author')
+                    .order_by("id"))
+        authors = User.objects.filter(id__in=queryset)
+        page = self.paginate_queryset(authors)
         if page is not None:
             recipes_limit = request.query_params.get(
                 "recipes_limit", settings.RECIPES_LIMIT
@@ -67,7 +67,7 @@ class CustomUserViewSet(UserViewSet):
             )
             return self.get_paginated_response(serializer.data)
         serializer = UserWithRecipesSerializer(
-            queryset, many=True, context={"request": request}
+            authors, many=True, context={"request": request}
         )
         return Response(serializer.data)
 
@@ -83,18 +83,12 @@ class CustomUserViewSet(UserViewSet):
                     {"errors": "Нельзя подписаться на самого себя"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            if Subscription.objects.filter(
-                    user=request.user,
-                    author=author
-            ).exists():
+            if request.user.subscriptions.filter(author=author).exists():
                 return Response(
                     {"errors": "Вы уже подписаны на этого автора"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            subscription = Subscription.objects.create(
-                user=request.user,
-                author=author
-            )
+            subscription = request.user.subscriptions.create(author=author)
             recipes_limit = request.query_params.get(
                 "recipes_limit", settings.RECIPES_LIMIT
             )
@@ -103,9 +97,8 @@ class CustomUserViewSet(UserViewSet):
                 context={"request": request, "recipes_limit": recipes_limit},
             )
             return Response(serializer.data, status=status.HTTP_201_CREATED)
-        subscription = Subscription.objects.filter(
-            user=request.user, author=author
-        ).first()
+
+        subscription = request.user.subscriptions.filter(author=author).first()
         if not subscription:
             return Response(
                 {"errors": "Вы не подписаны на этого автора"},
@@ -137,7 +130,6 @@ class CustomUserViewSet(UserViewSet):
             data=request.data,
             partial=True
         )
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_200_OK)

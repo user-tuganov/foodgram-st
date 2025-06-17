@@ -1,14 +1,12 @@
-from django.db.models import Exists, OuterRef, Sum
-from django.http import HttpResponse, FileResponse
+from django.db.models import Sum
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
-from django_filters.rest_framework import DjangoFilterBackend
 from recipes.models import (Favorite, Ingredient, IngredientInRecipe, Recipe,
                             ShoppingCart)
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import (
-    SAFE_METHODS, AllowAny, BasePermission, IsAuthenticated)
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
 from ..permissions import IsAuthorOrReadOnly
@@ -18,7 +16,6 @@ from ..serializers.recipes import (RecipeCreateUpdateSerializer,
 from ..serializers.users import RecipeMinifiedSerializer
 from ..utils import (CustomIngredientFilter, CustomPagination,
                      CustomRecipeFilter)
-from users.models import User
 
 
 class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
@@ -140,7 +137,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
     def download_shopping_cart(self, request):
         ingredients = (
             IngredientInRecipe.objects.filter(
-                recipe__shopping_cart__user=request.user
+                recipe__shoppingcarts__user=request.user
             )
             .values("ingredient__name", "ingredient__measurement_unit")
             .annotate(total_amount=Sum("amount"))
@@ -168,6 +165,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
     def get_link(self, request, pk=None):
         recipe = self.get_object()
         url = request.build_absolute_uri(
-            reverse('api:recipe-detail', args=[recipe.id])
+            reverse('api:recipes-detail', args=[recipe.id])
         )
         return Response({"short-link": url})
